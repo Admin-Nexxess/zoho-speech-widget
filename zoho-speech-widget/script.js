@@ -1,60 +1,44 @@
-let recognition;
+// Initialize the speech recognition API
+var SpeechRecognition = SpeechRecognition || webkitSpeechRecognition;
+var recognition = new SpeechRecognition();
 
-function startRecognition() {
-    recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'en-US';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
+// Set the recognition settings
+recognition.continuous = false;
+recognition.interimResults = false;
+recognition.lang = 'en-US';
 
+// Function to handle the speech recognition results
+function onSpeechResult(transcript) {
+    console.log('Transcript:', transcript);
+
+    // Set the value of the 'Prompt Text' field using Zoho Creator API
+    ZOHO.CREATOR.init()
+        .then(function(data) {
+            var formInstance = ZOHO.CREATOR.UTIL.getCurrentFormInstance();
+            formInstance.setFieldValue('Prompt_Text', transcript); // Use the correct field name
+        });
+}
+
+// Function to start the speech recognition
+function startSpeechRecognition() {
     recognition.start();
-
-    recognition.onresult = function(event) {
-        const transcript = event.results[0][0].transcript;
-        document.getElementById('transcript').value = transcript;
-        sendToOpenAI(transcript);
-    };
-
-    recognition.onspeechend = function() {
-        recognition.stop();
-    };
-
-    recognition.onerror = function(event) {
-        console.error('Speech recognition error detected: ' + event.error);
-    };
 }
 
-document.getElementById('start-record-btn').addEventListener('click', startRecognition);
+// Event handler for when speech recognition results are received
+recognition.onresult = function(event) {
+    var transcript = event.results[0][0].transcript;
+    onSpeechResult(transcript);
+};
 
-function sendToOpenAI(text) {
-    const apiKey = 'YOUR_OPENAI_API_KEY';
-    const apiUrl = 'https://api.openai.com/v1/assistants/asst_bmwA8jaOqj0VTIXgtYmqlaj2/completions';
+// Event handler for speech recognition errors
+recognition.onerror = function(event) {
+    console.error('Speech recognition error detected: ' + event.error);
+};
 
-    fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-            'OpenAI-Beta': 'assistants=v2'
-        },
-        body: JSON.stringify({
-            messages: [
-                {
-                    role: 'user',
-                    content: {
-                        type: 'text',
-                        text: text
-                    }
-                }
-            ],
-            max_tokens: 50
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log(data);
-        document.getElementById('transcript').value = data.choices[0].text;
-    })
-    .catch(error => {
-        console.error('Error:', error);
-    });
+// Event handler for speech recognition end
+recognition.onend = function() {
+    console.log('Speech recognition service disconnected');
 }
+
+// Attach the startSpeechRecognition function to a button click event or similar
+document.getElementById('start-recognition-button').addEventListener('click', startSpeechRecognition);
