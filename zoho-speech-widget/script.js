@@ -1,44 +1,53 @@
-// Initialize the speech recognition API
-var SpeechRecognition = SpeechRecognition || webkitSpeechRecognition;
-var recognition = new SpeechRecognition();
+window.addEventListener('load', function() {
+  // Ensure the browser supports Web Speech API
+  if (!('webkitSpeechRecognition' in window)) {
+    alert("Your browser does not support speech recognition. Please use Google Chrome.");
+    return;
+  }
 
-// Set the recognition settings
-recognition.continuous = false;
-recognition.interimResults = false;
-recognition.lang = 'en-US';
+  // Initialize Web Speech API
+  const recognition = new webkitSpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = false;
 
-// Function to handle the speech recognition results
-function onSpeechResult(transcript) {
-    console.log('Transcript:', transcript);
+  recognition.onstart = function() {
+    console.log('Voice recognition started.');
+  };
 
-    // Set the value of the 'Prompt Text' field using Zoho Creator API
-    ZOHO.CREATOR.init()
-        .then(function(data) {
-            var formInstance = ZOHO.CREATOR.UTIL.getCurrentFormInstance();
-            formInstance.setFieldValue('Prompt_Text', transcript); // Use the correct field name
-        });
-}
+  recognition.onresult = function(event) {
+    const transcript = event.results[0][0].transcript;
+    console.log('Voice recognition result: ', transcript);
+    
+    // Insert the transcribed text into the Zoho Creator form
+    ZOHO.CREATOR.API.addRecord({
+      appName: "nexxsuite",
+      formName: "AI_Prompt",
+      data: {
+        "Prompt_Text": transcript
+      }
+    }).then(function(response) {
+      console.log(response);
+      if(response.code === 3000) {
+        alert("Record added successfully!");
+        location.reload(); // Reload the page to show the new record
+      } else {
+        alert("Failed to add record.");
+      }
+    }).catch(function(error) {
+      console.error(error);
+    });
+  };
 
-// Function to start the speech recognition
-function startSpeechRecognition() {
+  recognition.onerror = function(event) {
+    console.error('Speech recognition error detected: ', event.error);
+  };
+
+  recognition.onend = function() {
+    console.log('Voice recognition ended.');
+  };
+
+  // Start recognition when the button is clicked
+  document.getElementById('start-recognition-button').addEventListener('click', function() {
     recognition.start();
-}
-
-// Event handler for when speech recognition results are received
-recognition.onresult = function(event) {
-    var transcript = event.results[0][0].transcript;
-    onSpeechResult(transcript);
-};
-
-// Event handler for speech recognition errors
-recognition.onerror = function(event) {
-    console.error('Speech recognition error detected: ' + event.error);
-};
-
-// Event handler for speech recognition end
-recognition.onend = function() {
-    console.log('Speech recognition service disconnected');
-}
-
-// Attach the startSpeechRecognition function to a button click event or similar
-document.getElementById('start-recognition-button').addEventListener('click', startSpeechRecognition);
+  });
+});
