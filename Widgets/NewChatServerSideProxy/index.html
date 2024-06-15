@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+        }
+        #messages {
+            flex: 1;
+            padding: 10px;
+            overflow-y: scroll;
+            border-bottom: 1px solid #ccc;
+        }
+        .message {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            max-width: 80%;
+        }
+        .user {
+            background-color: lightgrey;
+            align-self: flex-end;
+        }
+        .bot {
+            background-color: lightblue;
+            align-self: flex-start;
+        }
+        #inputContainer {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #ccc;
+        }
+        #messageInput {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        #sendButton {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="messages"></div>
+    <div id="inputContainer">
+        <input type="text" id="messageInput" placeholder="Type a message">
+        <button id="sendButton" onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        const messagesContainer = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+
+        function sendMessage() {
+            const messageText = messageInput.value.trim();
+            if (messageText !== '') {
+                addMessage('user', messageText);
+                messageInput.value = '';
+                // Send the message to Zoho Creator via proxy server
+                sendToZohoCreator(messageText);
+            }
+        }
+
+        function addMessage(sender, text) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', sender);
+            messageElement.textContent = text;
+            messagesContainer.appendChild(messageElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function sendToZohoCreator(messageText) {
+            fetch('http://localhost:3000/proxy', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    endpoint: '/form/AI_Prompt/record',
+                    method: 'POST',
+                    data: {
+                        data: {
+                            Prompt_Text: messageText
+                        }
+                    }
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Record added:', data);
+                // Fetch and update messages after adding the new one
+                fetchMessages();
+            })
+            .catch(error => {
+                console.error('Error adding record:', error);
+            });
+        }
+
+        function fetchMessages() {
+            fetch('http://localhost:3000/proxy', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    endpoint: '/report/AI_Prompt_Report',
+                    method: 'GET'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                messagesContainer.innerHTML = '';
+                data.data.forEach(record => {
+                    addMessage('bot', record.Prompt_Text);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching records:', error);
+            });
+        }
+
+        // Fetch existing messages on load
+        fetchMessages();
+    </script>
+</body>
+</html>
